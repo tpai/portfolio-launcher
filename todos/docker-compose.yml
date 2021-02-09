@@ -1,0 +1,52 @@
+version: "3.5"
+
+services:
+  net:
+    image: alpine:3.7
+    network_mode: bridge
+    ports:
+      - 8080:8080
+      - 3000:3000
+    command: tail -f /dev/null
+    restart: always
+  web:
+    image: tonypai/reactjs-saga-starter:latest
+    network_mode: service:net
+    depends_on:
+      - api
+    environment:
+      API_HOST: http://0.0.0.0:3000
+  api:
+    image: tonypai/reactjs-saga-starter-api:latest
+    network_mode: service:net
+    depends_on:
+      - mysql
+    command: >
+      sh -c "apk add bash &&
+             wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh &&
+             chmod +x wait-for-it.sh &&
+             ./wait-for-it.sh -t 0 0.0.0.0:3306 -- npm start"
+    environment:
+      DB_HOST: 0.0.0.0
+      DB_NAME: todos
+      DB_USER: user
+      DB_PASS: pass
+  mysql:
+    image: mysql:5.6
+    network_mode: service:net
+    restart: always
+    healthcheck:
+      test:
+        ["CMD-SHELL", "mysqladmin -h localhost -u root -padmin ping --silent"]
+      timeout: 10s
+      retries: 3
+    command:
+      [
+        "--character-set-server=utf8mb4",
+        "--collation-server=utf8mb4_unicode_ci",
+      ]
+    environment:
+      MYSQL_DATABASE: todos
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+      MYSQL_ROOT_PASSWORD: admin
